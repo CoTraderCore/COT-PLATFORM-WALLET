@@ -13,6 +13,6 @@ Note 51% CoTrader token holders can change owner of this contract
 # run test
 ```
 1) npm i
-2) truffle develop (in separate console)
+2) npm run ganache (in separate console)
 3) truffle test
 ```
