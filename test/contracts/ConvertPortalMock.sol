@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.6.0;
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 
@@ -21,7 +21,7 @@ contract ConvertPortalMock {
     allowConvertToCOT = false;
   }
 
-  // For Mock 
+  // For Mock
   function disallowConvertToETH()public{
     allowConvertToETH = false;
   }

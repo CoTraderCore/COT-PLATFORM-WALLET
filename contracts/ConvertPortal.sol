@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.6.0;
 
 import "./interfaces/IGetBancorAddressFromRegistry.sol";
 import "./interfaces/BancorNetworkInterface.sol";
@@ -19,7 +19,7 @@ contract ConvertPortal {
   /**
   * @dev contructor
   *
-  * @param _bancorRegistryWrapper  address of CoTrader Bancor Registry Wrapper contract 
+  * @param _bancorRegistryWrapper  address of CoTrader Bancor Registry Wrapper contract
   * @param _BancorEtherToken       address of Bancor ETH wrapper contract
   * @param _kyber                  address of KyberNetworkProxy contract
   * @param _cotToken               address of CoTrader erc20 contract
@@ -252,5 +252,5 @@ contract ConvertPortal {
   }
 
   // fallback payable function to receive ether from other contract addresses
-  function() public payable {}
+  fallback() external payable {}
 }

@@ -8,11 +8,12 @@
 * NOTE: 51% CoTrader token holders can change owner of this contract
 */
 
-pragma solidity ^0.4.24;
+pragma solidity ^0.6.0;
+
 import "./interfaces/IStake.sol";
 import "./interfaces/IConvertPortal.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
+import "openzeppelin-solidity/contracts/access/Ownable.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 contract CoTraderDAOWallet is Ownable{
@@ -84,7 +85,7 @@ contract CoTraderDAOWallet is Ownable{
   *
   * @param tokens                          array of token addresses for destribute
   */
-  function destribute(ERC20[] tokens) {
+  function destribute(ERC20[] memory tokens) {
    for(uint i = 0; i < tokens.length; i++){
       // get current token balance
       uint256 curentTokenTotalBalance = getTokenBalance(tokens[i]);
@@ -246,5 +247,5 @@ contract CoTraderDAOWallet is Ownable{
   }
 
   // fallback payable function to receive ether from other contract addresses
-  function() public payable {}
+  fallback() external payable {}
 }
