@@ -12,11 +12,16 @@ require('chai')
   .use(require('chai-bignumber')(BigNumber))
   .should()
 
-const CoTraderDAOWallet = artifacts.require('CoTraderDAOWallet')
+const CoTraderDAOWallet = artifacts.require('./CoTraderDAOWallet.sol')
+const ConvertPortal = artifacts.require('./ConvertPortal.sol')
 const Token = artifacts.require('Token')
-const TokenMock = artifacts.require('./TokenMock')
+
 const Stake = artifacts.require('./Stake')
-const ConvertPortal = artifacts.require('./ConvertPortalMock.sol')
+const UniswapV2Factory = artifacts.require('./dex/UniswapV2Factory.sol')
+const UniswapV2Router = artifacts.require('./dex/UniswapV2Router02.sol')
+const UniswapV2Pair = artifacts.require('./dex/UniswapV2Pair.sol')
+const WETH = artifacts.require('./dex/WETH9.sol')
+
 
 contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
   beforeEach(async function() {
@@ -31,12 +36,29 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
     )
 
     // Deploy COT Token
-    this.testToken = await TokenMock.new(
+    this.testToken = await Token.new(
       "TEST",
       "TST",
       18,
       toWei(String(5000000))
     )
+
+    // deploy DEX
+    this.uniswapV2Factory = await UniswapV2Factory.new(userOne)
+    this.weth = await WETH.new()
+    this.uniswapV2Router = await UniswapV2Router.new(this.uniswapV2Factory.address, this.weth.address)
+
+    // add token liquidity
+    await this.cot.approve(this.uniswapV2Router.address, toWei(String(100)))
+
+    await this.uniswapV2Router.addLiquidityETH(
+      this.cot.address,
+      toWei(String(100)),
+      1,
+      1,
+      userOne,
+      "1111111111111111111111"
+    , { from:userOne, value:toWei(String(100)) })
 
     // Deploy Stake
     this.stake = await Stake.new(this.cot.address)

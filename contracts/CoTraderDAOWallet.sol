@@ -32,8 +32,8 @@ contract CoTraderDAOWallet is Ownable{
   // burn address
   address public deadAddress = address(0x000000000000000000000000000000000000dEaD);
   // destribution percents
-  uint256 burnPercent = 60;
-  uint256 stakePercent = 20;
+  uint256 burnPercent = 50;
+  uint256 stakePercent = 10;
   uint256 withdrawPercent = 40;
 
 
