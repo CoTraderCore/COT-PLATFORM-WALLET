@@ -12,14 +12,14 @@ pragma solidity ^0.6.0;
 
 import "./interfaces/IStake.sol";
 import "./interfaces/IConvertPortal.sol";
-import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-solidity/contracts/access/Ownable.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 contract CoTraderDAOWallet is Ownable{
   using SafeMath for uint256;
   // COT address
-  ERC20 public COT;
+  IERC20 public COT;
   // exchange portal for convert tokens to COT
   IConvertPortal public convertPortal;
   // stake contract
@@ -31,7 +31,7 @@ contract CoTraderDAOWallet is Ownable{
   // voter => register status
   mapping(address => bool) public votersMap;
   // this contract recognize ETH by this address
-  ERC20 constant private ETH_TOKEN_ADDRESS = ERC20(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
+  IERC20 constant private ETH_TOKEN_ADDRESS = IERC20(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   // burn address
   address public deadAddress = address(0x000000000000000000000000000000000000dEaD);
 
@@ -44,13 +44,13 @@ contract CoTraderDAOWallet is Ownable{
   * @param _convertPortal                 address of exchange contract
   */
   constructor(address _COT, address _stake, address _convertPortal) public {
-    COT = ERC20(_COT);
+    COT = IERC20(_COT);
     stake = IStake(_stake);
     convertPortal = IConvertPortal(_convertPortal);
   }
 
   // send assets to burn address
-  function _burn(ERC20 _token, uint256 _amount) private {
+  function _burn(IERC20 _token, uint256 _amount) private {
     uint256 cotAmount = (_token == COT)
     ? _amount
     : convertTokenToCOT(_token, _amount);
@@ -59,7 +59,7 @@ contract CoTraderDAOWallet is Ownable{
   }
 
   // send assets to stake contract
-  function _stake(ERC20 _token, uint256 _amount) private {
+  function _stake(IERC20 _token, uint256 _amount) private {
     uint256 cotAmount = (_token == COT)
     ? _amount
     : convertTokenToCOT(_token, _amount);
@@ -71,7 +71,7 @@ contract CoTraderDAOWallet is Ownable{
   }
 
   // send assets to owner
-  function _withdraw(ERC20 _token, uint256 _amount) private {
+  function _withdraw(IERC20 _token, uint256 _amount) private {
     if(_amount > 0)
       if(_token == ETH_TOKEN_ADDRESS){
         address(owner).transfer(_amount);
@@ -85,7 +85,7 @@ contract CoTraderDAOWallet is Ownable{
   *
   * @param tokens                          array of token addresses for destribute
   */
-  function destribute(ERC20[] memory tokens) {
+  function destribute(IERC20[] memory tokens) {
    for(uint i = 0; i < tokens.length; i++){
       // get current token balance
       uint256 curentTokenTotalBalance = getTokenBalance(tokens[i]);
@@ -106,7 +106,7 @@ contract CoTraderDAOWallet is Ownable{
   }
 
   // return balance of ERC20 or ETH for this contract
-  function getTokenBalance(ERC20 _token) public view returns(uint256){
+  function getTokenBalance(IERC20 _token) public view returns(uint256){
     if(_token == ETH_TOKEN_ADDRESS){
       return address(this).balance;
     }else{
@@ -122,7 +122,7 @@ contract CoTraderDAOWallet is Ownable{
   * @param _token                          address of token
   * @param _amount                         amount of token
   */
-  function withdrawNonConvertibleERC(ERC20 _token, uint256 _amount) public onlyOwner {
+  function withdrawNonConvertibleERC(IERC20 _token, uint256 _amount) public onlyOwner {
     uint256 cotReturnAmount = convertPortal.isConvertibleToCOT(_token, _amount);
     uint256 ethReturnAmount = convertPortal.isConvertibleToETH(_token, _amount);
 
@@ -151,11 +151,11 @@ contract CoTraderDAOWallet is Ownable{
     // try convert current token to COT
     uint256 cotReturnAmount = convertPortal.isConvertibleToCOT(_token, _amount);
     if(cotReturnAmount > 0) {
-      if(ERC20(_token) == ETH_TOKEN_ADDRESS){
+      if(IERC20(_token) == ETH_TOKEN_ADDRESS){
         cotAmount = convertPortal.convertTokentoCOT.value(_amount)(_token, _amount);
       }
       else{
-        ERC20(_token).approve(address(convertPortal), _amount);
+        IERC20(_token).approve(address(convertPortal), _amount);
         cotAmount = convertPortal.convertTokentoCOT(_token, _amount);
       }
     }
@@ -163,7 +163,7 @@ contract CoTraderDAOWallet is Ownable{
     else {
       uint256 ethReturnAmount = convertPortal.isConvertibleToETH(_token, _amount);
       if(ethReturnAmount > 0) {
-        ERC20(_token).approve(address(convertPortal), _amount);
+        IERC20(_token).approve(address(convertPortal), _amount);
         cotAmount = convertPortal.convertTokentoCOTviaETH(_token, _amount);
       }
       // there are no way convert token to COT

@@ -1,6 +1,6 @@
-contract PathFinderInterface {
+interface PathFinderInterface {
   function generatePath(address _sourceToken, address _targetToken)
-  public
+  external
   view
   returns (address[] memory);
 }

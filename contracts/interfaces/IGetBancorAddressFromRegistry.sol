@@ -1,3 +1,3 @@
-contract IGetBancorAddressFromRegistry{
-  function getBancorContractAddresByName(string memory _name) public view returns (address result);
+interface IGetBancorAddressFromRegistry{
+  function getBancorContractAddresByName(string memory _name) external view returns (address result);
 }

@@ -1,6 +1,6 @@
-contract IGetRatioForBancorAssets {
+interface IGetRatioForBancorAssets {
   function getRatio(address _from, address _to, uint256 _amount)
-  public
+  external
   view
   returns(uint256 result);
 }

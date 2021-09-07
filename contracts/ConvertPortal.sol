@@ -5,7 +5,7 @@ import "./interfaces/BancorNetworkInterface.sol";
 import "./interfaces/PathFinderInterface.sol";
 import "./interfaces/KyberNetworkInterface.sol";
 import "./interfaces/IGetRatioForBancorAssets.sol";
-import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 
 contract ConvertPortal {
@@ -71,15 +71,15 @@ contract ConvertPortal {
     (bool success) = address(kyber).call(
     abi.encodeWithSelector(
       kyber.getExpectedRate.selector,
-      ERC20(_token),
-      ERC20(ETH_TOKEN_ADDRESS),
+      IERC20(_token),
+      IERC20(ETH_TOKEN_ADDRESS),
        _amount));
 
     // get ratio
     if(success){
      (uint256 expectedRate, ) = kyber.getExpectedRate(
-      ERC20(_token),
-      ERC20(ETH_TOKEN_ADDRESS),
+      IERC20(_token),
+      IERC20(ETH_TOKEN_ADDRESS),
       _amount);
       return expectedRate;
     }else{
@@ -105,19 +105,19 @@ contract ConvertPortal {
     );
 
     // send COT back to sender
-    ERC20(cotToken).transfer(msg.sender, cotAmount);
+    IERC20(cotToken).transfer(msg.sender, cotAmount);
 
     // After the trade, any amount of input token will be sent back to msg.sender
     uint256 endAmount = (_token == ETH_TOKEN_ADDRESS)
     ? address(this).balance
-    : ERC20(_token).balanceOf(address(this));
+    : IERC20(_token).balanceOf(address(this));
 
     // Check if we hold a positive amount of _source
     if (endAmount > 0) {
       if (_token == ETH_TOKEN_ADDRESS) {
         (msg.sender).transfer(endAmount);
       } else {
-        ERC20(_token).transfer(msg.sender, endAmount);
+        IERC20(_token).transfer(msg.sender, endAmount);
       }
     }
   }
@@ -131,9 +131,9 @@ contract ConvertPortal {
   {
     // convert token to ETH via kyber
     uint256 receivedETH = _tradeKyber(
-        ERC20(_token),
+        IERC20(_token),
         _amount,
-        ERC20(ETH_TOKEN_ADDRESS)
+        IERC20(ETH_TOKEN_ADDRESS)
     );
 
     // convert ETH to COT via bancor
@@ -144,24 +144,24 @@ contract ConvertPortal {
     );
 
     // send COT back to sender
-    ERC20(cotToken).transfer(msg.sender, cotAmount);
+    IERC20(cotToken).transfer(msg.sender, cotAmount);
 
     // check if there are remains some amount of token and eth, then send back to sender
     uint256 endAmountOfETH = address(this).balance;
-    uint256 endAmountOfERC = ERC20(_token).balanceOf(address(this));
+    uint256 endAmountOfERC = IERC20(_token).balanceOf(address(this));
 
     if(endAmountOfETH > 0)
       (msg.sender).transfer(endAmountOfETH);
     if(endAmountOfERC > 0)
-      ERC20(_token).transfer(msg.sender, endAmountOfERC);
+      IERC20(_token).transfer(msg.sender, endAmountOfERC);
   }
 
 
  // Facilitates trade with Bancor
  function _tradeKyber(
-   ERC20 _source,
+   IERC20 _source,
    uint256 _sourceAmount,
-   ERC20 _destination
+   IERC20 _destination
  )
    private
    returns (uint256)
@@ -216,24 +216,24 @@ contract ConvertPortal {
     );
 
     // Change source and destination to Bancor ETH wrapper
-    address source = ERC20(sourceToken) == ETH_TOKEN_ADDRESS ? BancorEtherToken : sourceToken;
-    address destination = ERC20(destinationToken) == ETH_TOKEN_ADDRESS ? BancorEtherToken : destinationToken;
+    address source = IERC20(sourceToken) == ETH_TOKEN_ADDRESS ? BancorEtherToken : sourceToken;
+    address destination = IERC20(destinationToken) == ETH_TOKEN_ADDRESS ? BancorEtherToken : destinationToken;
 
     // Get Bancor tokens path
     address[] memory path = pathFinder.generatePath(source, destination);
 
     // Convert addresses to ERC20
-    ERC20[] memory pathInERC20 = new ERC20[](path.length);
+    IERC20[] memory pathInERC20 = new IERC20[](path.length);
     for(uint i=0; i<path.length; i++){
-        pathInERC20[i] = ERC20(path[i]);
+        pathInERC20[i] = IERC20(path[i]);
     }
 
     // trade
-    if (ERC20(sourceToken) == ETH_TOKEN_ADDRESS) {
+    if (IERC20(sourceToken) == ETH_TOKEN_ADDRESS) {
       returnAmount = bancorNetwork.convert.value(sourceAmount)(pathInERC20, sourceAmount, 1);
     }
     else {
-      _transferFromSenderAndApproveTo(ERC20(sourceToken), sourceAmount, address(bancorNetwork));
+      _transferFromSenderAndApproveTo(IERC20(sourceToken), sourceAmount, address(bancorNetwork));
       returnAmount = bancorNetwork.claimAndConvert(pathInERC20, sourceAmount, 1);
     }
  }
@@ -245,7 +245,7 @@ contract ConvertPortal {
   * @param _sourceAmount    The amount to transfer and approve (in _source token)
   * @param _to              Address to approve to
   */
-  function _transferFromSenderAndApproveTo(ERC20 _source, uint256 _sourceAmount, address _to) private {
+  function _transferFromSenderAndApproveTo(IERC20 _source, uint256 _sourceAmount, address _to) private {
     require(_source.transferFrom(msg.sender, address(this), _sourceAmount));
 
     _source.approve(_to, _sourceAmount);

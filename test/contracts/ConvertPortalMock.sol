@@ -1,6 +1,6 @@
 pragma solidity ^0.6.0;
 
-import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 contract ConvertPortalMock {
   address constant private ETH_TOKEN_ADDRESS = address(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
@@ -53,11 +53,11 @@ contract ConvertPortalMock {
      if(_token == ETH_TOKEN_ADDRESS){
        require(msg.value == _amount);
      }else{
-       ERC20(_token).transferFrom(msg.sender, address(this), _amount);
+       IERC20(_token).transferFrom(msg.sender, address(this), _amount);
      }
 
      cotAmount = _amount * cotRatio;
-     ERC20(cotToken).transfer(msg.sender, cotAmount);
+     IERC20(cotToken).transfer(msg.sender, cotAmount);
   }
 
   // convert ERC to ETH and then ETH to COT
@@ -68,8 +68,8 @@ contract ConvertPortalMock {
   returns (uint256 cotAmount)
   {
      cotAmount = _amount * cotRatio;
-     ERC20(_token).transferFrom(msg.sender, address(this), _amount);
-     ERC20(cotToken).transfer(msg.sender, cotAmount);
+     IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+     IERC20(cotToken).transfer(msg.sender, cotAmount);
   }
 
 }
