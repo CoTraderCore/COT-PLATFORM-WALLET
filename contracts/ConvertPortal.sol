@@ -1,242 +1,144 @@
 pragma solidity ^0.6.0;
 
-import "./interfaces/IGetBancorAddressFromRegistry.sol";
-import "./interfaces/BancorNetworkInterface.sol";
-import "./interfaces/PathFinderInterface.sol";
-import "./interfaces/KyberNetworkInterface.sol";
-import "./interfaces/IGetRatioForBancorAssets.sol";
+import "./interfaces/IUniswapV2Router.sol"
 import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 
 contract ConvertPortal {
-  address public BancorEtherToken;
-  IGetBancorAddressFromRegistry public bancorRegistry;
-  KyberNetworkInterface public kyber;
-  IGetRatioForBancorAssets public bancorRatio;
   address public cotToken;
+  IUniswapV2Router public router;
+  address public weth;
   address constant private ETH_TOKEN_ADDRESS = address(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
 
   /**
   * @dev contructor
   *
-  * @param _bancorRegistryWrapper  address of CoTrader Bancor Registry Wrapper contract
-  * @param _BancorEtherToken       address of Bancor ETH wrapper contract
-  * @param _kyber                  address of KyberNetworkProxy contract
   * @param _cotToken               address of CoTrader erc20 contract
-  * @param _bancorRatio            address of CoTrader Bancor ratio contract
+  * @param _router                 address of Uniswap v2
   */
   constructor(
-    address _bancorRegistryWrapper,
-    address _BancorEtherToken,
-    address _kyber,
     address _cotToken,
-    address _bancorRatio
+    address _router
     )
     public
   {
-    bancorRegistry = IGetBancorAddressFromRegistry(_bancorRegistryWrapper);
-    BancorEtherToken = _BancorEtherToken;
-    kyber = KyberNetworkInterface(_kyber);
     cotToken = _cotToken;
-    bancorRatio = IGetRatioForBancorAssets(_bancorRatio);
+    router = IUniswapV2Router(_router);
+    weth = router.WETH();
   }
 
-  // check if token can be converted to COT in Bancor Network
+  // check if token can be converted to COT in Uniswap v2
   function isConvertibleToCOT(address _token, uint256 _amount)
-  public
-  view
-  returns(uint256)
+   public
+   view
+  returns(uint256 cotAmount)
   {
-    // wrap Bancor ETH token
-    address fromToken = _token == ETH_TOKEN_ADDRESS ? BancorEtherToken : _token;
-    // check if can get ratio
-    (bool success) = address(bancorRatio).call(
-    abi.encodeWithSelector(bancorRatio.getRatio.selector, fromToken, cotToken, _amount));
-    // get ratio from Bancor DEX with COT
-    if(success){
-      return bancorRatio.getRatio(fromToken, cotToken, _amount);
-    }else{
-      return 0;
+    address[] memory path = new address[](2);
+    path[0] = _token;
+    path[1] = cotToken;
+    try router.getAmountsOut(_amount, path) returns(uint256[] memory res){
+      cotAmount = res[1];
+    }catch{
+      cotAmount = 0;
     }
   }
 
-  // check if token can be converted to ETH in Kyber Network
-  // can be added more DEX
+  // check if token can be converted to ETH in Uniswap v2
   function isConvertibleToETH(address _token, uint256 _amount)
-  public
-  view
-  returns(uint256)
+   public
+   view
+  returns(uint256 ethAmount)
   {
-    // check if can get ratio
-    (bool success) = address(kyber).call(
-    abi.encodeWithSelector(
-      kyber.getExpectedRate.selector,
-      IERC20(_token),
-      IERC20(ETH_TOKEN_ADDRESS),
-       _amount));
-
-    // get ratio
-    if(success){
-     (uint256 expectedRate, ) = kyber.getExpectedRate(
-      IERC20(_token),
-      IERC20(ETH_TOKEN_ADDRESS),
-      _amount);
-      return expectedRate;
-    }else{
-      return 0;
+    address[] memory path = new address[](2);
+    path[0] = _token;
+    path[1] = weth;
+    try router.getAmountsOut(_amount, path) returns(uint256[] memory res){
+      ethAmount = res[1];
+    }catch{
+      ethAmount = 0;
     }
   }
 
-  // convert ERC to COT via Bancor network
-  // return COT amount
-  function convertTokentoCOT(address _token, uint256 _amount)
-  public
-  payable
-  returns (uint256 cotAmount)
+  // Convert ETH to COT directly
+  function convertETHToCOT(uint256 _amount)
+   public
+   payable
+   returns (uint256 cotAmount)
   {
-    if(_token == ETH_TOKEN_ADDRESS)
-      require(msg.value == _amount, "require ETH");
+    require(msg.value == _amount, "wrong ETH amount");
+    address[] memory path = new address[](2);
+    path[0] = weth;
+    path[1] = cotToken;
+    uint256 deadline = now + 20 minutes;
 
-    // get COT
-    cotAmount = _tradeBancor(
-        _token,
-        cotToken,
-        _amount
+    uint256[] memory amounts = router.swapExactETHForTokens(_amount,
+      path,
+      msg.sender,
+      deadline
     );
 
-    // send COT back to sender
-    IERC20(cotToken).transfer(msg.sender, cotAmount);
+    // send eth remains
+    uint256 remains = address(this).balance;
+    if(remains > 0)
+      payable(msg.sender).transfer(remains);
 
-    // After the trade, any amount of input token will be sent back to msg.sender
-    uint256 endAmount = (_token == ETH_TOKEN_ADDRESS)
-    ? address(this).balance
-    : IERC20(_token).balanceOf(address(this));
-
-    // Check if we hold a positive amount of _source
-    if (endAmount > 0) {
-      if (_token == ETH_TOKEN_ADDRESS) {
-        (msg.sender).transfer(endAmount);
-      } else {
-        IERC20(_token).transfer(msg.sender, endAmount);
-      }
-    }
+    cotAmount = amounts[1];
   }
 
-  // convert ERC to ETH and then ETH to COT
-  // for case if input token not in Bancor network
-  // return COT amount
-  function convertTokentoCOTviaETH(address _token, uint256 _amount)
-  public
-  returns (uint256 cotAmount)
+  // convert Token to COT directly
+  function convertTokenToCOT(address _token, uint256 _amount)
+   external
+   returns (uint256 cotAmount)
   {
-    // convert token to ETH via kyber
-    uint256 receivedETH = _tradeKyber(
-        IERC20(_token),
-        _amount,
-        IERC20(ETH_TOKEN_ADDRESS)
+    _transferFromSenderAndApproveTo(IERC20(_token), _amount, address(router));
+    address[] memory path = new address[](2);
+    path[0] = _token;
+    path[1] = cotToken;
+    uint256 deadline = now + 20 minutes;
+
+    uint256[] memory amounts = router.swapExactTokensForTokens(
+      _amount,
+      1,
+      path,
+      msg.sender,
+      deadline
     );
 
-    // convert ETH to COT via bancor
-    cotAmount = _tradeBancor(
-        ETH_TOKEN_ADDRESS,
-        cotToken,
-        receivedETH
-    );
+    // send token remains
+    uint256 remains = IERC20(_token).balanceOf(address(this));
+    if(remains > 0)
+      IERC20(_token).transfer(msg.sender, remains);
 
-    // send COT back to sender
-    IERC20(cotToken).transfer(msg.sender, cotAmount);
-
-    // check if there are remains some amount of token and eth, then send back to sender
-    uint256 endAmountOfETH = address(this).balance;
-    uint256 endAmountOfERC = IERC20(_token).balanceOf(address(this));
-
-    if(endAmountOfETH > 0)
-      (msg.sender).transfer(endAmountOfETH);
-    if(endAmountOfERC > 0)
-      IERC20(_token).transfer(msg.sender, endAmountOfERC);
+    cotAmount = amounts[1];
   }
 
+  // convert Token to COT via ETH
+  function convertTokenToCOTViaETH(address _token, uint256 _amount)
+   external
+   returns (uint256 cotAmount)
+  {
+    _transferFromSenderAndApproveTo(IERC20(_token), _amount, address(router));
+    address[] memory path = new address[](3);
+    path[0] = _token;
+    path[1] = weth;
+    path[2] = cotToken;
+    uint256 deadline = now + 20 minutes;
 
- // Facilitates trade with Bancor
- function _tradeKyber(
-   IERC20 _source,
-   uint256 _sourceAmount,
-   IERC20 _destination
- )
-   private
-   returns (uint256)
- {
-   uint256 destinationReceived;
-   uint256 _maxDestinationAmount = 2**256-1;
-   uint256 _minConversionRate = 1;
-   address _walletId = address(0x0000000000000000000000000000000000000000);
-
-   if (_source == ETH_TOKEN_ADDRESS) {
-     destinationReceived = kyber.trade.value(_sourceAmount)(
-       _source,
-       _sourceAmount,
-       _destination,
-       this,
-       _maxDestinationAmount,
-       _minConversionRate,
-       _walletId
-     );
-   } else {
-     _transferFromSenderAndApproveTo(_source, _sourceAmount, kyber);
-     destinationReceived = kyber.trade(
-       _source,
-       _sourceAmount,
-       _destination,
-       this,
-       _maxDestinationAmount,
-       _minConversionRate,
-       _walletId
-     );
-   }
-
-   return destinationReceived;
- }
-
- // Facilitates trade with Bancor
- function _tradeBancor(
-   address sourceToken,
-   address destinationToken,
-   uint256 sourceAmount
-   )
-   private
-   returns(uint256 returnAmount)
- {
-    // get latest bancor contracts
-    BancorNetworkInterface bancorNetwork = BancorNetworkInterface(
-      bancorRegistry.getBancorContractAddresByName("BancorNetwork")
+    uint256[] memory amounts = router.swapExactTokensForTokens(
+      _amount,
+      1,
+      path,
+      msg.sender,
+      deadline
     );
 
-    PathFinderInterface pathFinder = PathFinderInterface(
-      bancorRegistry.getBancorContractAddresByName("BancorNetworkPathFinder")
-    );
+    // send token remains
+    uint256 remains = IERC20(_token).balanceOf(address(this));
+    if(remains > 0)
+      IERC20(_token).transfer(msg.sender, remains);
 
-    // Change source and destination to Bancor ETH wrapper
-    address source = IERC20(sourceToken) == ETH_TOKEN_ADDRESS ? BancorEtherToken : sourceToken;
-    address destination = IERC20(destinationToken) == ETH_TOKEN_ADDRESS ? BancorEtherToken : destinationToken;
-
-    // Get Bancor tokens path
-    address[] memory path = pathFinder.generatePath(source, destination);
-
-    // Convert addresses to ERC20
-    IERC20[] memory pathInERC20 = new IERC20[](path.length);
-    for(uint i=0; i<path.length; i++){
-        pathInERC20[i] = IERC20(path[i]);
-    }
-
-    // trade
-    if (IERC20(sourceToken) == ETH_TOKEN_ADDRESS) {
-      returnAmount = bancorNetwork.convert.value(sourceAmount)(pathInERC20, sourceAmount, 1);
-    }
-    else {
-      _transferFromSenderAndApproveTo(IERC20(sourceToken), sourceAmount, address(bancorNetwork));
-      returnAmount = bancorNetwork.claimAndConvert(pathInERC20, sourceAmount, 1);
-    }
- }
+    cotAmount = amounts[1];
+  }
 
  /**
   * @dev Transfers tokens to this contract and approves them to another address

@@ -9,12 +9,16 @@ interface IConvertPortal {
   view
   returns(uint256);
 
-  function convertTokentoCOT(address _token, uint256 _amount)
+  function convertTokenToCOT(address _token, uint256 _amount)
+  external
+  returns (uint256 cotAmount);
+
+  function convertETHToCOT(uint256 _amount)
   external
   payable
   returns (uint256 cotAmount);
 
-  function convertTokentoCOTviaETH(address _token, uint256 _amount)
+  function convertTokenToCOTviaETH(address _token, uint256 _amount)
   external
   returns (uint256 cotAmount);
 }

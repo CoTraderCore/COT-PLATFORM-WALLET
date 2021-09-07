@@ -145,26 +145,29 @@ contract CoTraderDAOWallet is Ownable{
   * @param _amount                         amount of token
   */
   function convertTokenToCOT(address _token, uint256 _amount)
-  private
-  returns(uint256 cotAmount)
+    private
+    returns(uint256 cotAmount)
   {
-    // try convert current token to COT
+    // try convert current token to COT directly
     uint256 cotReturnAmount = convertPortal.isConvertibleToCOT(_token, _amount);
     if(cotReturnAmount > 0) {
+      // Convert via ETH directly
       if(IERC20(_token) == ETH_TOKEN_ADDRESS){
-        cotAmount = convertPortal.convertTokentoCOT.value(_amount)(_token, _amount);
+        cotAmount = convertPortal.convertETHToCOT.value(_amount)(_token, _amount);
       }
+      // Convert via COT directly
       else{
         IERC20(_token).approve(address(convertPortal), _amount);
-        cotAmount = convertPortal.convertTokentoCOT(_token, _amount);
+        cotAmount = convertPortal.convertTokenToCOT(_token, _amount);
       }
     }
-    // try convert current token to COT via ETH
+    // Convert current token to COT via ETH help
     else {
+      // Try convert token to cot via eth help
       uint256 ethReturnAmount = convertPortal.isConvertibleToETH(_token, _amount);
       if(ethReturnAmount > 0) {
         IERC20(_token).approve(address(convertPortal), _amount);
-        cotAmount = convertPortal.convertTokentoCOTviaETH(_token, _amount);
+        cotAmount = convertPortal.convertTokenToCOTviaETH(_token, _amount);
       }
       // there are no way convert token to COT
       else{
@@ -175,8 +178,8 @@ contract CoTraderDAOWallet is Ownable{
 
   // owner can change version of exchange portal contract
   function changeConvertPortal(address _newConvertPortal)
-  public
-  onlyOwner
+   external
+   onlyOwner
   {
     convertPortal = IConvertPortal(_newConvertPortal);
   }
