@@ -1,9 +1,6 @@
 /**
 * This contract get 10% from CoTrader managers profit and then distributes assets
-*
-* 50% convert to COT and burn
-* 10% convert to COT and send to stake reserve
-* 40% to owner of this contract (CoTrader team)
+* to burn, stake and platform
 *
 * NOTE: 51% CoTrader token holders can change owner of this contract
 */
@@ -34,6 +31,10 @@ contract CoTraderDAOWallet is Ownable{
   IERC20 constant private ETH_TOKEN_ADDRESS = IERC20(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
   // burn address
   address public deadAddress = address(0x000000000000000000000000000000000000dEaD);
+  // destribution percents
+  uint256 burnPercent = 60;
+  uint256 stakePercent = 20;
+  uint256 withdrawPercent = 40;
 
 
   /**
@@ -53,7 +54,7 @@ contract CoTraderDAOWallet is Ownable{
   function _burn(IERC20 _token, uint256 _amount) private {
     uint256 cotAmount = (_token == COT)
     ? _amount
-    : convertTokenToCOT(_token, _amount);
+    : convertTokenToCOT(address(_token), _amount);
     if(cotAmount > 0)
       COT.transfer(deadAddress, cotAmount);
   }
@@ -62,7 +63,7 @@ contract CoTraderDAOWallet is Ownable{
   function _stake(IERC20 _token, uint256 _amount) private {
     uint256 cotAmount = (_token == COT)
     ? _amount
-    : convertTokenToCOT(_token, _amount);
+    : convertTokenToCOT(address(_token), _amount);
 
     if(cotAmount > 0){
       COT.approve(address(stake), cotAmount);
@@ -74,9 +75,9 @@ contract CoTraderDAOWallet is Ownable{
   function _withdraw(IERC20 _token, uint256 _amount) private {
     if(_amount > 0)
       if(_token == ETH_TOKEN_ADDRESS){
-        address(owner).transfer(_amount);
+        payable(owner()).transfer(_amount);
       }else{
-        _token.transfer(owner, _amount);
+        _token.transfer(owner(), _amount);
       }
   }
 
@@ -85,22 +86,19 @@ contract CoTraderDAOWallet is Ownable{
   *
   * @param tokens                          array of token addresses for destribute
   */
-  function destribute(IERC20[] memory tokens) {
+  function destribute(IERC20[] memory tokens) public {
    for(uint i = 0; i < tokens.length; i++){
       // get current token balance
       uint256 curentTokenTotalBalance = getTokenBalance(tokens[i]);
-      // get 50% of balance for burn
-      uint256 burnAmount = curentTokenTotalBalance.div(2);
-      // get 10% of balance
-      uint256 stakeAmount = burnAmount.div(5);
-      // get 40% of balance
-      uint256 managerAmount = stakeAmount.mul(4);
 
-      // 50% burn
+      // get destribution percent
+      uint256 burnAmount = curentTokenTotalBalance.div(100).mul(burnPercent);
+      uint256 stakeAmount = curentTokenTotalBalance.div(100).mul(stakePercent);
+      uint256 managerAmount = curentTokenTotalBalance.div(100).mul(withdrawPercent);
+
+      // destribute
       _burn(tokens[i], burnAmount);
-      // 10% stake
       _stake(tokens[i], stakeAmount);
-      // 40% to owner address
       _withdraw(tokens[i], managerAmount);
     }
   }
@@ -122,17 +120,42 @@ contract CoTraderDAOWallet is Ownable{
   * @param _token                          address of token
   * @param _amount                         amount of token
   */
-  function withdrawNonConvertibleERC(IERC20 _token, uint256 _amount) public onlyOwner {
+  function withdrawNonConvertibleERC(address _token, uint256 _amount) public onlyOwner {
     uint256 cotReturnAmount = convertPortal.isConvertibleToCOT(_token, _amount);
     uint256 ethReturnAmount = convertPortal.isConvertibleToETH(_token, _amount);
 
-    require(_token != ETH_TOKEN_ADDRESS, "token can not be a ETH");
+    require(IERC20(_token) != ETH_TOKEN_ADDRESS, "token can not be a ETH");
     require(cotReturnAmount == 0, "token can not be converted to COT");
     require(ethReturnAmount == 0, "token can not be converted to ETH");
 
-    _token.transfer(owner, _amount);
+    IERC20(_token).transfer(owner(), _amount);
   }
 
+  /**
+  * Owner can update total destribution percent
+  *
+  *
+  * @param _stakePercent          percent to stake
+  * @param _burnPercent           percent to burn
+  * @param _withdrawPercent       percent to withdraw
+  */
+  function updateDestributionPercent(
+    uint256 _stakePercent,
+    uint256 _burnPercent,
+    uint256 _withdrawPercent
+  )
+   public
+   onlyOwner
+  {
+    require(_withdrawPercent <= 40, "Too big for withdraw");
+
+    stakePercent = _stakePercent;
+    burnPercent = _burnPercent;
+    withdrawPercent = _withdrawPercent;
+
+    uint256 total = _stakePercent.add(_burnPercent).add(_withdrawPercent);
+    require(total == 100, "Wrong total");
+  }
 
   /**
   * @dev this function try convert token to COT via DEXs which has COT in circulation
@@ -153,12 +176,12 @@ contract CoTraderDAOWallet is Ownable{
     if(cotReturnAmount > 0) {
       // Convert via ETH directly
       if(IERC20(_token) == ETH_TOKEN_ADDRESS){
-        cotAmount = convertPortal.convertETHToCOT.value(_amount)(_token, _amount);
+        cotAmount = convertPortal.convertETHToCOT.value(_amount)(_amount);
       }
       // Convert via COT directly
       else{
         IERC20(_token).approve(address(convertPortal), _amount);
-        cotAmount = convertPortal.convertTokenToCOT(_token, _amount);
+        cotAmount = convertPortal.convertTokenToCOT(address(_token), _amount);
       }
     }
     // Convert current token to COT via ETH help
@@ -167,7 +190,7 @@ contract CoTraderDAOWallet is Ownable{
       uint256 ethReturnAmount = convertPortal.isConvertibleToETH(_token, _amount);
       if(ethReturnAmount > 0) {
         IERC20(_token).approve(address(convertPortal), _amount);
-        cotAmount = convertPortal.convertTokenToCOTviaETH(_token, _amount);
+        cotAmount = convertPortal.convertTokenToCOTviaETH(address(_token), _amount);
       }
       // there are no way convert token to COT
       else{
@@ -246,7 +269,7 @@ contract CoTraderDAOWallet is Ownable{
     // require 51% COT on voters balance
     require(totalVotersBalance > totalCOT);
     // change owner
-    super._transferOwnership(_newOwner);
+    transferOwnership(_newOwner);
   }
 
   // fallback payable function to receive ether from other contract addresses
