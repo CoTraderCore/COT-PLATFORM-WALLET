@@ -9,8 +9,9 @@ pragma solidity ^0.6.0;
 
 import "./interfaces/IStake.sol";
 import "./interfaces/IConvertPortal.sol";
+import "./Ownable.sol";
+
 import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import "openzeppelin-solidity/contracts/access/Ownable.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 contract CoTraderDAOWallet is Ownable{
@@ -55,7 +56,7 @@ contract CoTraderDAOWallet is Ownable{
     uint256 cotAmount = (_token == COT)
     ? _amount
     : convertTokenToCOT(address(_token), _amount);
-    
+
     if(cotAmount > 0)
       COT.transfer(deadAddress, cotAmount);
   }
@@ -76,9 +77,9 @@ contract CoTraderDAOWallet is Ownable{
   function _withdraw(IERC20 _token, uint256 _amount) private {
     if(_amount > 0)
       if(_token == ETH_TOKEN_ADDRESS){
-        payable(owner()).transfer(_amount);
+        payable(owner).transfer(_amount);
       }else{
-        _token.transfer(owner(), _amount);
+        _token.transfer(owner, _amount);
       }
   }
 
@@ -129,7 +130,7 @@ contract CoTraderDAOWallet is Ownable{
     require(cotReturnAmount == 0, "token can not be converted to COT");
     require(ethReturnAmount == 0, "token can not be converted to ETH");
 
-    IERC20(_token).transfer(owner(), _amount);
+    IERC20(_token).transfer(owner, _amount);
   }
 
   /**
@@ -270,7 +271,7 @@ contract CoTraderDAOWallet is Ownable{
     // require 51% COT on voters balance
     require(totalVotersBalance > totalCOT);
     // change owner
-    transferOwnership(_newOwner);
+    _transferOwnership(_newOwner);
   }
 
   // fallback payable function to receive ether from other contract addresses
