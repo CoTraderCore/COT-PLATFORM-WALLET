@@ -88,7 +88,7 @@ contract CoTraderDAOWallet is Ownable{
   *
   * @param tokens                          array of token addresses for destribute
   */
-  function destribute(IERC20[] memory tokens) public {
+  function destribute(IERC20[] memory tokens) external {
    for(uint i = 0; i < tokens.length; i++){
       // get current token balance
       uint256 curentTokenTotalBalance = getTokenBalance(tokens[i]);
@@ -122,7 +122,7 @@ contract CoTraderDAOWallet is Ownable{
   * @param _token                          address of token
   * @param _amount                         amount of token
   */
-  function withdrawNonConvertibleERC(address _token, uint256 _amount) public onlyOwner {
+  function withdrawNonConvertibleERC(address _token, uint256 _amount) external onlyOwner {
     uint256 cotReturnAmount = convertPortal.isConvertibleToCOT(_token, _amount);
     uint256 ethReturnAmount = convertPortal.isConvertibleToETH(_token, _amount);
 
@@ -146,7 +146,7 @@ contract CoTraderDAOWallet is Ownable{
     uint256 _burnPercent,
     uint256 _withdrawPercent
   )
-   public
+   external
    onlyOwner
   {
     require(_withdrawPercent <= 40, "Too big for withdraw");
@@ -210,10 +210,15 @@ contract CoTraderDAOWallet is Ownable{
   }
 
   // any user can donate to stake reserve from msg.sender balance
-  function addStakeReserveFromSender(uint256 _amount) public {
+  function addStakeReserveFromSender(uint256 _amount) external {
     require(COT.transferFrom(msg.sender, address(this), _amount));
     COT.approve(address(stake), _amount);
     stake.addReserve(_amount);
+  }
+
+  // owner can set new stake address for case if previos stake progarm finished
+  function updateStakeAddress(address _stake) external onlyOwner {
+    stake = IStake(_stake);
   }
 
 
@@ -226,7 +231,7 @@ contract CoTraderDAOWallet is Ownable{
   */
 
   // register a new vote wallet
-  function voterRegister() public {
+  function voterRegister() external {
     require(!votersMap[msg.sender], "not allowed register the same wallet twice");
     // register a new wallet
     voters.push(msg.sender);
@@ -234,7 +239,7 @@ contract CoTraderDAOWallet is Ownable{
   }
 
   // vote for a certain candidate address
-  function vote(address _candidate) public {
+  function vote(address _candidate) external {
     require(votersMap[msg.sender], "wallet must be registered to vote");
     // vote for a certain candidate
     candidatesMap[msg.sender] = _candidate;
@@ -249,7 +254,7 @@ contract CoTraderDAOWallet is Ownable{
 
   // calculate all vote subscribers for a certain candidate
   // return balance of COT of all voters of a certain candidate
-  function calculateVoters(address _candidate)public view returns(uint256){
+  function calculateVoters(address _candidate) public view returns(uint256){
     uint256 count;
     for(uint i = 0; i<voters.length; i++){
       // take into account current voter balance
@@ -263,7 +268,7 @@ contract CoTraderDAOWallet is Ownable{
 
   // Any user can change owner with a certain candidate
   // if this candidate address have 51% voters
-  function changeOwner(address _newOwner) public {
+  function changeOwner(address _newOwner) external {
     // get vote data
     uint256 totalVotersBalance = calculateVoters(_newOwner);
     // get half of COT supply in market circulation

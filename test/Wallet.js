@@ -62,6 +62,7 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
 
     // Deploy Stake
     this.stake = await Stake.new(this.cot.address)
+    this.stake2 = await Stake.new(this.cot.address)
 
     // Deploy ConvertPortal
     this.convertPortal = await ConvertPortal.new(this.cot.address, this.uniswapV2Router.address)
@@ -103,6 +104,49 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
 
       const token = await this.daoWallet.COT()
       assert.equal(this.cot.address, token)
+    })
+  })
+
+  describe('Update stake address', function() {
+    it('Not owner can not update stake address ', async function() {
+      await this.daoWallet.updateStakeAddress(
+        this.stake2.address,
+        { from:userTwo }
+      ).should.be.rejectedWith(EVMRevert)
+    })
+
+    it('Owner can update stake address ', async function() {
+      await this.daoWallet.updateStakeAddress(
+        this.stake2.address
+      )
+    })
+  })
+
+
+  describe('Update destribution percent', function() {
+    it('Now owner can not update destribution', async function() {
+      await this.daoWallet.updateDestributionPercent(
+        40,
+        40,
+        20,
+        { from:userTwo }
+      ).should.be.rejectedWith(EVMRevert)
+    })
+
+    it('Owner can update destribution', async function() {
+      await this.daoWallet.updateDestributionPercent(
+        40,
+        40,
+        20
+      )
+    })
+
+    it('Owner can not set more than 40% for withdraw', async function() {
+      await this.daoWallet.updateDestributionPercent(
+        20,
+        20,
+        60
+      ).should.be.rejectedWith(EVMRevert)
     })
   })
 
