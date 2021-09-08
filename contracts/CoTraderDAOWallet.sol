@@ -209,13 +209,6 @@ contract CoTraderDAOWallet is Ownable{
     convertPortal = IConvertPortal(_newConvertPortal);
   }
 
-  // any user can donate to stake reserve from msg.sender balance
-  function addStakeReserveFromSender(uint256 _amount) external {
-    require(COT.transferFrom(msg.sender, address(this), _amount));
-    COT.approve(address(stake), _amount);
-    stake.addReserve(_amount);
-  }
-
   // owner can set new stake address for case if previos stake progarm finished
   function updateStakeAddress(address _stake) external onlyOwner {
     stake = IStake(_stake);

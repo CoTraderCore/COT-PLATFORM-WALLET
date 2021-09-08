@@ -312,13 +312,6 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
       assert.equal(await this.cot.balanceOf(this.daoWallet.address), 0)
       assert.equal(await web3.eth.getBalance(this.daoWallet.address), 0)
     })
-
-    it('Users can add reserve to stake from his own balance', async function() {
-      assert.equal(await this.cot.balanceOf(this.stake.address), 0)
-      await this.cot.approve(this.daoWallet.address, toWei(String(1)))
-      await this.daoWallet.addStakeReserveFromSender(toWei(String(1)))
-      assert.equal(await this.cot.balanceOf(this.stake.address), toWei(String(1)))
-    })
   })
 
 
