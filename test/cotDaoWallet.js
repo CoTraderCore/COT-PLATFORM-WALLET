@@ -64,7 +64,7 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
     this.stake = await Stake.new(this.cot.address)
 
     // Deploy ConvertPortal
-    this.convertPortal = await ConvertPortal.new(this.cot.address)
+    this.convertPortal = await ConvertPortal.new(this.cot.address, this.uniswapV2Router.address)
 
     // Send some amount of COT to convertPortalMock
     await this.cot.transfer(this.convertPortal.address, toWei(String(1000000)))
@@ -360,15 +360,24 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
 
     it('Owner can not call withdrawNonConvertibleERC if this ERC convertible', async function() {
       await this.testToken.transfer(this.daoWallet.address, 5000000)
+
+      // ADD LD in ETH
+      this.testToken.approve(uniswapV2Router.address, toWei(String(100)))
+      await this.uniswapV2Router.addLiquidityETH(
+        this.testToken.address,
+        toWei(String(100)),
+        1,
+        1,
+        userOne,
+        "1111111111111111111111"
+      , { from:userOne, value:toWei(String(100)) })
+
+
       await this.daoWallet.withdrawNonConvertibleERC(this.testToken.address, 5000000)
       .should.be.rejectedWith(EVMRevert)
     })
 
     it('Owner can call withdrawNonConvertibleERC and get this ERC if this ERC non convertible', async function() {
-      // disallow convert tst token to cor or eth
-      await this.convertPortal.disallowConvertToCOT()
-      await this.convertPortal.disallowConvertToETH()
-
       const tstSupply = await this.testToken.totalSupply()
       // transfer ALL TST tokens to DAO wallet
       await this.testToken.transfer(this.daoWallet.address, tstSupply)
