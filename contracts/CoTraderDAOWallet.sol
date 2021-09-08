@@ -32,9 +32,9 @@ contract CoTraderDAOWallet is Ownable{
   // burn address
   address public deadAddress = address(0x000000000000000000000000000000000000dEaD);
   // destribution percents
-  uint256 burnPercent = 50;
-  uint256 stakePercent = 10;
-  uint256 withdrawPercent = 40;
+  uint256 public burnPercent = 50;
+  uint256 public stakePercent = 10;
+  uint256 public withdrawPercent = 40;
 
 
   /**
@@ -55,6 +55,7 @@ contract CoTraderDAOWallet is Ownable{
     uint256 cotAmount = (_token == COT)
     ? _amount
     : convertTokenToCOT(address(_token), _amount);
+    
     if(cotAmount > 0)
       COT.transfer(deadAddress, cotAmount);
   }
@@ -190,7 +191,7 @@ contract CoTraderDAOWallet is Ownable{
       uint256 ethReturnAmount = convertPortal.isConvertibleToETH(_token, _amount);
       if(ethReturnAmount > 0) {
         IERC20(_token).approve(address(convertPortal), _amount);
-        cotAmount = convertPortal.convertTokenToCOTviaETH(address(_token), _amount);
+        cotAmount = convertPortal.convertTokenToCOTViaETHHelp(address(_token), _amount);
       }
       // there are no way convert token to COT
       else{

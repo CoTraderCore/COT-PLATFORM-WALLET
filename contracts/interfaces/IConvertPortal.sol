@@ -18,7 +18,7 @@ interface IConvertPortal {
   payable
   returns (uint256 cotAmount);
 
-  function convertTokenToCOTviaETH(address _token, uint256 _amount)
+  function convertTokenToCOTViaETHHelp(address _token, uint256 _amount)
   external
   returns (uint256 cotAmount);
 }

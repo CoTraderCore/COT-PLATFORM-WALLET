@@ -152,6 +152,15 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
 
     it('Owner get 40% ETH, stake get 10% COT from ETH, burn address get 50% COT from ETH after destribute', async function() {
       const ownerBalanceBefore = await web3.eth.getBalance(userOne)
+      const burnAddress = await this.daoWallet.deadAddress()
+
+      // burn and stake don't hold any COt before burn
+      // stake get 10% ETH in COT (1 ETH = 3 COT)
+      assert.equal(fromWei(await this.cot.balanceOf(this.stake.address)), 0)
+
+      // burn get 50% ETH in COT (1 ETH = 3 COT)
+      assert.equal(fromWei(await this.cot.balanceOf(burnAddress)), 0)
+
 
       // send ETH to DAO wallet from userTwo
       await this.daoWallet.sendTransaction({
@@ -165,18 +174,19 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
       await this.daoWallet.destribute([this.ETH_TOKEN_ADDRESS], { from:userTwo })
 
       DaoWalletBalance = await web3.eth.getBalance(this.daoWallet.address)
+
       assert.equal(DaoWalletBalance, 0)
 
       const ownerBalanceAfter = await web3.eth.getBalance(userOne)
 
       // owner get 40% ETH
       assert.equal(fromWei(String(ownerBalanceAfter)) - fromWei(String(ownerBalanceBefore)), 4)
-      // stake get 10% ETH in COT (1 ETH = 3 COT)
-      assert.equal(fromWei(await this.cot.balanceOf(this.stake.address)), 1 * 3)
 
-      const burnAddress = await this.daoWallet.deadAddress()
+      // stake get 10% ETH in COT (1 ETH = 3 COT)
+      assert.isTrue(fromWei(await this.cot.balanceOf(this.stake.address)) > 0)
+
       // burn get 50% ETH in COT (1 ETH = 3 COT)
-      assert.equal(fromWei(await this.cot.balanceOf(burnAddress)), 5 * 3)
+      assert.isTrue(fromWei(await this.cot.balanceOf(burnAddress)) > 0)
 
       assert.equal(await web3.eth.getBalance(this.daoWallet.address), 0)
     })
@@ -184,36 +194,67 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
     it('Owner get 40% TST, stake get 10% COT from TST and burn address get 50% COT from TST after destribute', async function() {
       await this.testToken.transfer(this.daoWallet.address, toWei(String(100)))
       // transfer all tst to userTwo for correct calculation for userOne
-      const ownerBalance = await this.testToken.balanceOf(userOne)
-      this.testToken.transfer(userTwo, ownerBalance)
+      this.testToken.transfer(userTwo, toWei(String(100)))
+
+      // add liquidity for test token
+      // add token liquidity
+      await this.testToken.approve(this.uniswapV2Router.address, toWei(String(100)))
+
+      await this.uniswapV2Router.addLiquidityETH(
+        this.testToken.address,
+        toWei(String(100)),
+        1,
+        1,
+        userOne,
+        "1111111111111111111111"
+      , { from:userOne, value:toWei(String(100)) })
+
+      // clear user 1 balance
+      await this.testToken.transfer(userTwo, await this.testToken.balanceOf(userOne))
 
       await this.daoWallet.destribute([this.testToken.address])
 
       const burnAddress = await this.daoWallet.deadAddress()
 
-      assert.equal(await this.testToken.balanceOf(userOne), toWei(String(40)))
-      assert.equal(await this.cot.balanceOf(this.stake.address), toWei(String(10 * 3))) // 1 TST = 3 COT
-      assert.equal(await this.cot.balanceOf(burnAddress), toWei(String(50 * 3))) // 1 TST = 3 COT
+      // should destribute convert to COT and destribute
+      assert.isTrue(await this.cot.balanceOf(this.stake.address) > 0)
+      assert.isTrue(await this.cot.balanceOf(burnAddress) > 0)
+
+      // should just destribute
+      assert.equal(Number(await this.testToken.balanceOf(userOne)), toWei(String(40)))
+      assert.equal(await this.testToken.balanceOf(this.daoWallet.address), 0)
     })
 
     it('destribute COT, ETH, and TST token', async function() {
-      // transfer COT token to DAO wallet
-      await this.cot.transfer(this.daoWallet.address, toWei(String(10)))
-      // transfer test token to DAO wallet
-      await this.testToken.transfer(this.daoWallet.address, toWei(String(10)))
-      // transfer ETH to DAO wallet
-      // transfer from user two for correct calcualte owner wei
-      await this.daoWallet.sendTransaction({
-        value: toWei(String(10)),
-        from: userTwo
-      });
+     // transfer COT token to DAO wallet
+     await this.cot.transfer(this.daoWallet.address, toWei(String(10)))
+     // transfer test token to DAO wallet
+     await this.testToken.transfer(this.daoWallet.address, toWei(String(10)))
+     // transfer ETH to DAO wallet
+     // transfer from user two for correct calcualte owner wei
+     await this.daoWallet.sendTransaction({
+       value: toWei(String(10)),
+       from: userTwo
+     });
 
-      // Owner balance before destribute
-      const ownerBalanceTSTBefore = await this.testToken.balanceOf(userOne)
-      const ownerBalanceCOTBefore = await this.cot.balanceOf(userOne)
-      const ownerBalanceETHBefore = await web3.eth.getBalance(userOne)
+     const burnAddress = await this.daoWallet.deadAddress()
 
-      const burnAddress = await this.daoWallet.deadAddress()
+     // Wallet get assets
+     assert.notEqual(await this.testToken.balanceOf(this.daoWallet.address), 0)
+     assert.notEqual(await this.cot.balanceOf(this.daoWallet.address), 0)
+     assert.notEqual(await web3.eth.getBalance(this.daoWallet.address), 0)
+
+     // add liquidity for test token
+     await this.testToken.approve(this.uniswapV2Router.address, toWei(String(100)))
+
+     await this.uniswapV2Router.addLiquidityETH(
+       this.testToken.address,
+       toWei(String(100)),
+       1,
+       1,
+       userOne,
+       "1111111111111111111111"
+     , { from:userOne, value:toWei(String(100)) })
 
       // destribute
       // NOTE: any user can execude destribute
@@ -222,41 +263,10 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
          this.testToken.address,
          this.ETH_TOKEN_ADDRESS], {from:userTwo})
 
-      // check stake and burn address
-      const stakeBalanceAfter = await this.cot.balanceOf(this.stake.address)
-      const burnBalanceAfter = await this.cot.balanceOf(burnAddress)
-
-      // calculate stake and burn
-      // 10% COT = 1, 10% ETH in COT = 1 * 3, 10% TST in COT = 1 * 3
-      assert.equal(fromWei(String(stakeBalanceAfter)), 1+3+3)
-      // 50% COT = 5, 50% ETH in COT = 5 * 3, 50% TST in COT = 5 * 3
-      assert.equal(fromWei(String(burnBalanceAfter)), 5+15+15)
-
-      // check owner balance after distribute
-      const ownerBalanceTSTAfter = await this.testToken.balanceOf(userOne)
-      const ownerBalanceCOTAfter = await this.cot.balanceOf(userOne)
-      const ownerBalanceETHAfter = await web3.eth.getBalance(userOne)
-
-      const ownerTSTEarn = ownerBalanceTSTAfter - ownerBalanceTSTBefore
-      const ownerCOTEarn = ownerBalanceCOTAfter - ownerBalanceCOTBefore
-      const ownerETHEarn = ownerBalanceETHAfter - ownerBalanceETHBefore
-
-      // calculate owner earn (for owner we not convert assets to COT)
-      // TST
-      assert.equal(Number(fromWei(String(ownerTSTEarn))).toFixed(8), 4)
-      // COT
-      assert.equal(Number(fromWei(String(ownerCOTEarn))).toFixed(8), 4)
-      // ETH
-      assert.isTrue(ownerBalanceETHAfter > ownerBalanceETHBefore)
-
-      // DAO wallet balance should be 0 after distribute
-      const DAOCOTBalance = await this.cot.balanceOf(this.daoWallet.address)
-      const DAOTSTBalance = await this.testToken.balanceOf(this.daoWallet.address)
-      const DAOETHBalance = await await web3.eth.getBalance(this.daoWallet.address)
-
-      assert.equal(DAOCOTBalance, 0)
-      assert.equal(DAOTSTBalance, 0)
-      assert.equal(DAOETHBalance, 0)
+      // Wallet destribute assets
+      assert.equal(await this.testToken.balanceOf(this.daoWallet.address), 0)
+      assert.equal(await this.cot.balanceOf(this.daoWallet.address), 0)
+      assert.equal(await web3.eth.getBalance(this.daoWallet.address), 0)
     })
 
     it('Users can add reserve to stake from his own balance', async function() {
@@ -362,7 +372,7 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
       await this.testToken.transfer(this.daoWallet.address, 5000000)
 
       // ADD LD in ETH
-      this.testToken.approve(uniswapV2Router.address, toWei(String(100)))
+      this.testToken.approve(this.uniswapV2Router.address, toWei(String(100)))
       await this.uniswapV2Router.addLiquidityETH(
         this.testToken.address,
         toWei(String(100)),
@@ -391,8 +401,6 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
     })
 
     it('Not owner can NOT call withdrawNonConvertibleERC and get this ERC if this ERC non convertible', async function() {
-      await this.convertPortal.disallowConvertToCOT()
-      await this.convertPortal.disallowConvertToETH()
       await this.testToken.transfer(this.daoWallet.address, 5000000)
       await this.daoWallet.withdrawNonConvertibleERC(this.testToken.address, 5000000, {from: userTwo})
       .should.be.rejectedWith(EVMRevert)

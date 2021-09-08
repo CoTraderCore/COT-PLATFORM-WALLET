@@ -33,9 +33,14 @@ contract ConvertPortal {
    view
   returns(uint256 cotAmount)
   {
+    address fromToken = _token == address(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee)
+    ? weth
+    : _token;
+
     address[] memory path = new address[](2);
-    path[0] = _token;
+    path[0] = fromToken;
     path[1] = cotToken;
+
     try router.getAmountsOut(_amount, path) returns(uint256[] memory res){
       cotAmount = res[1];
     }catch{
@@ -71,7 +76,8 @@ contract ConvertPortal {
     path[1] = cotToken;
     uint256 deadline = now + 20 minutes;
 
-    uint256[] memory amounts = router.swapExactETHForTokens(_amount,
+    uint256[] memory amounts = router.swapExactETHForTokens.value(_amount)(
+      1,
       path,
       msg.sender,
       deadline
@@ -113,7 +119,7 @@ contract ConvertPortal {
   }
 
   // convert Token to COT via ETH
-  function convertTokenToCOTViaETH(address _token, uint256 _amount)
+  function convertTokenToCOTViaETHHelp(address _token, uint256 _amount)
    external
    returns (uint256 cotAmount)
   {
@@ -137,7 +143,7 @@ contract ConvertPortal {
     if(remains > 0)
       IERC20(_token).transfer(msg.sender, remains);
 
-    cotAmount = amounts[1];
+    cotAmount = amounts[2];
   }
 
  /**
