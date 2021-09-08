@@ -21,3 +21,8 @@ Note 51% CoTrader token holders can change owner of this contract
 ```
 Make sure You updated PairHash in config and test/contracts/dex/libraries/UniswapV2Library.sol
 ```
+
+# Waring
+```
+STAKE interface do not fit yet
+```
