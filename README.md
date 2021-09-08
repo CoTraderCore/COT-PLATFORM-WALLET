@@ -16,3 +16,8 @@ Note 51% CoTrader token holders can change owner of this contract
 2) npm run ganache (in separate console)
 3) truffle test
 ```
+
+# if Router-Hash-test failed
+```
+Make sure You updated PairHash in config and test/contracts/dex/libraries/UniswapV2Library.sol
+```
