@@ -12,8 +12,7 @@ contract Stake {
     token = ERC20(_token);
   }
 
-  function addReserve(uint256 value) public {
-    require(token.transferFrom(msg.sender, address(this), value));
+  function notifyRewardAmount(uint256 value) public {
     reserve = reserve.add(value);
   }
 }

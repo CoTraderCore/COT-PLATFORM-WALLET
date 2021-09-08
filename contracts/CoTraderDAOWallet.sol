@@ -68,8 +68,8 @@ contract CoTraderDAOWallet is Ownable{
     : convertTokenToCOT(address(_token), _amount);
 
     if(cotAmount > 0){
-      COT.approve(address(stake), cotAmount);
-      stake.addReserve(cotAmount);
+      COT.transfer(address(stake), cotAmount);
+      stake.notifyRewardAmount(cotAmount);
     }
   }
 

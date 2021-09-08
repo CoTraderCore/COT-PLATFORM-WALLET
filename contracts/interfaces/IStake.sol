@@ -1,3 +1,3 @@
 interface IStake {
-  function addReserve(uint256 _amount) external;
+  function notifyRewardAmount(uint256 reward) external;
 }
