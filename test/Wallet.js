@@ -23,6 +23,7 @@ const UniswapV2Factory = artifacts.require('./dex/UniswapV2Factory.sol')
 const UniswapV2Router = artifacts.require('./dex/UniswapV2Router02.sol')
 const UniswapV2Pair = artifacts.require('./dex/UniswapV2Pair.sol')
 const WETH = artifacts.require('./dex/WETH9.sol')
+const stakePeriod = duration.years(5)
 
 
 contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
@@ -69,14 +70,14 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
       userOne,
       this.cot.address,
       this.pair.address,
-      duration.days(30)
+      stakePeriod
     )
 
     this.stake2 = await Stake.new(
       userOne,
       this.cot.address,
       this.pair.address,
-      duration.days(30)
+      stakePeriod
     )
 
 
@@ -166,7 +167,7 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
       assert.equal(Number(await this.pair.balanceOf(userOne)), 0)
 
       // unstake
-      await timeMachine.advanceTimeAndBlock(duration.days(31))
+      await timeMachine.advanceTimeAndBlock(stakePeriod + duration.days(1)) 
       await this.stake.exit()
 
       // user get back Uni pool and COT rewards
