@@ -1,5 +1,5 @@
 /**
-* This contract get 10% from CoTrader managers profit and then distributes assets
+* This contract get platform % from CoTrader managers profit and then distributes assets
 * to burn, stake and platform
 *
 * NOTE: 51% CoTrader token holders can change owner of this contract
