@@ -60,9 +60,24 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
       "1111111111111111111111"
     , { from:userOne, value:toWei(String(100)) })
 
-    // Deploy Stake
-    this.stake = await Stake.new(this.cot.address)
-    this.stake2 = await Stake.new(this.cot.address)
+    this.pairAddress = await this.uniswapV2Factory.allPairs(0)
+    this.pair = await UniswapV2Pair.at(this.pairAddress)
+
+    this.stake = await Stake.new(
+      userOne,
+      this.cot.address,
+      this.pair.address,
+      duration.days(30)
+    )
+
+    this.stake2 = await Stake.new(
+      userOne,
+      this.cot.address,
+      this.pair.address,
+      duration.days(30)
+    )
+
+
 
     // Deploy ConvertPortal
     this.convertPortal = await ConvertPortal.new(this.cot.address, this.uniswapV2Router.address)
@@ -74,7 +89,13 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
     this.daoWallet = await CoTraderDAOWallet.new(
       this.cot.address,
       this.stake.address,
-      this.convertPortal.address)
+      this.convertPortal.address
+    )
+
+    // set stake perrmitions to DAO wallet
+
+    await this.stake.setRewardsDistribution(this.daoWallet.address)
+    await this.stake2.setRewardsDistribution(this.daoWallet.address)
   })
 
   describe('INIT', function() {
@@ -96,14 +117,6 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
       assert.equal("TEST", name)
       assert.equal("TST", symbol)
       assert.equal(18, decimals)
-    })
-
-    it('Correct init stake', async function() {
-      const reserve = await this.stake.reserve()
-      assert.equal(0, reserve)
-
-      const token = await this.daoWallet.COT()
-      assert.equal(this.cot.address, token)
     })
   })
 
