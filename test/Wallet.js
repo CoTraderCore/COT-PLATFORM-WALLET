@@ -5,6 +5,8 @@ import EVMRevert from './helpers/EVMRevert'
 import { duration } from './helpers/duration'
 import latestTime from './helpers/latestTime'
 import advanceTimeAndBlock from './helpers/advanceTimeAndBlock'
+
+const timeMachine = require('ganache-time-traveler')
 const BigNumber = BN
 
 require('chai')
@@ -135,6 +137,43 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
     })
   })
 
+  describe('Stake and wallet destribute', function() {
+    it('Stake should works after destribute ', async function() {
+      // stake not hold any hold
+      assert.equal(Number(await this.cot.balanceOf(this.stake.address)), 0)
+
+      // send ETH to DAO wallet from userTwo
+      await this.daoWallet.sendTransaction({
+        value: toWei(String(10)),
+        from: userTwo
+      })
+
+      await this.daoWallet.destribute([this.ETH_TOKEN_ADDRESS])
+
+      // stake get COT
+      assert.notEqual(Number(await this.cot.balanceOf(this.stake.address)), 0)
+
+      // clear COT balance
+      await this.cot.transfer(userTwo, await this.cot.balanceOf(userOne))
+
+      // stake
+      const amountToStake = await this.pair.balanceOf(userOne)
+      await this.pair.approve(this.stake.address, amountToStake)
+      await this.stake.stake(amountToStake)
+
+      // user not hold any Uni pool and COT
+      assert.equal(Number(await this.cot.balanceOf(userOne)), 0)
+      assert.equal(Number(await this.pair.balanceOf(userOne)), 0)
+
+      // unstake
+      await timeMachine.advanceTimeAndBlock(duration.days(31))
+      await this.stake.exit()
+
+      // user get back Uni pool and COT rewards
+      assert.notEqual(Number(await this.cot.balanceOf(userOne)), 0)
+      assert.notEqual(Number(await this.pair.balanceOf(userOne)), 0)
+    })
+  })
 
   describe('Update destribution percent', function() {
     it('Now owner can not update destribution', async function() {
