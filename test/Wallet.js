@@ -139,7 +139,7 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
   })
 
   describe('Stake and wallet destribute', function() {
-    it('Stake should works after destribute ', async function() {
+    it('Stake/Unstake should works after destribute ', async function() {
       // stake not hold any hold
       assert.equal(Number(await this.cot.balanceOf(this.stake.address)), 0)
 
@@ -167,8 +167,102 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
       assert.equal(Number(await this.pair.balanceOf(userOne)), 0)
 
       // unstake
-      await timeMachine.advanceTimeAndBlock(stakePeriod + duration.days(1)) 
+      await timeMachine.advanceTimeAndBlock(stakePeriod + duration.days(1))
       await this.stake.exit()
+
+      // user get back Uni pool and COT rewards
+      assert.notEqual(Number(await this.cot.balanceOf(userOne)), 0)
+      assert.notEqual(Number(await this.pair.balanceOf(userOne)), 0)
+    })
+
+    it('Stake/Unstake should works coorect after many different destributes COT, TestToken and ETH ', async function() {
+      // stake not hold any hold
+      assert.equal(Number(await this.cot.balanceOf(this.stake.address)), 0)
+
+      // stake uni pool token
+      const amountToStake = await this.pair.balanceOf(userOne)
+      await this.pair.approve(this.stake.address, amountToStake)
+      await this.stake.stake(amountToStake)
+
+      // add liquidity for test token
+      await this.testToken.approve(this.uniswapV2Router.address, toWei(String(100)))
+
+      await this.uniswapV2Router.addLiquidityETH(
+        this.testToken.address,
+        toWei(String(100)),
+        1,
+        1,
+        userOne,
+        "1111111111111111111111"
+      , { from:userOne, value:toWei(String(100)) })
+
+      // do many destribution
+      for(let i = 0; i<5; i++){
+        console.log("_______________________________________ tx :", i+1)
+        console.log(
+          "COT on stake before destribution ",
+          Number(fromWei(String(await this.cot.balanceOf(this.stake.address)))).toFixed(2)
+        )
+
+        // send ETH to DAO wallet from userTwo
+        await this.daoWallet.sendTransaction({
+          value: toWei(String(1)),
+          from: userTwo
+        })
+        // destribute ETH
+        await this.daoWallet.destribute([this.ETH_TOKEN_ADDRESS])
+
+        // send cot
+        await this.cot.transfer(this.daoWallet.address, toWei(String(1)))
+        // destribute cot
+        await this.daoWallet.destribute([this.cot.address])
+
+        // send test token
+        await this.testToken.transfer(this.daoWallet.address, toWei(String(1)))
+        // destribute test token
+        await this.daoWallet.destribute([this.testToken.address])
+
+        console.log(
+          "COT on stake after destribution",
+          Number(fromWei(String(await this.cot.balanceOf(this.stake.address)))).toFixed(2)
+        )
+      }
+
+      // stake get COT
+      assert.notEqual(Number(await this.cot.balanceOf(this.stake.address)), 0)
+
+      // clear COT balance
+      await this.cot.transfer(userTwo, await this.cot.balanceOf(userOne))
+
+      // user not hold any Uni pool and COT
+      assert.equal(Number(await this.cot.balanceOf(userOne)), 0)
+      assert.equal(Number(await this.pair.balanceOf(userOne)), 0)
+
+
+      await timeMachine.advanceTimeAndBlock(stakePeriod + duration.days(1))
+
+      console.log("_______________________________________")
+      console.log("Total COT on stake before unstake",
+      Number(fromWei(String(await this.cot.balanceOf(this.stake.address)))).toFixed(2)
+      )
+
+      console.log("User balance before unstake",
+      Number(fromWei(String(await this.cot.balanceOf(userOne)))).toFixed(2),
+      )
+      console.log("Estimate user rewards",
+      Number(fromWei(String(await this.stake.earned(userOne)))).toFixed(2)
+      )
+
+      // unstake
+      await this.stake.exit()
+
+      console.log("Total COT on stake after unstake",
+      Number(fromWei(String(await this.cot.balanceOf(this.stake.address)))).toFixed(2)
+      )
+
+      console.log("User balance after unstake",
+      Number(fromWei(String(await this.cot.balanceOf(userOne)))).toFixed(2)
+      )
 
       // user get back Uni pool and COT rewards
       assert.notEqual(Number(await this.cot.balanceOf(userOne)), 0)
