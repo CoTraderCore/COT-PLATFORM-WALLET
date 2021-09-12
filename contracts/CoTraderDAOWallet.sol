@@ -210,8 +210,8 @@ contract CoTraderDAOWallet is Ownable{
   }
 
   // owner can set new stake address for case if previos stake progarm finished
-  function updateStakeAddress(address _stake) external onlyOwner {
-    stake = IStake(_stake);
+  function updateStakeAddress(address _newStake) external onlyOwner {
+    stake = IStake(_newStake);
   }
 
 
