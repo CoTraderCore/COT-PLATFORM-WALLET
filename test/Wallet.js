@@ -164,6 +164,58 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
     })
   })
 
+  describe('Convert token via ETH', function() {
+    it('Should convert XXX to COT via ETH and return correct COT amount ', async function() {
+      // add liquidity for test token
+      await this.testToken.approve(this.uniswapV2Router.address, toWei(String(1000)))
+
+      await this.uniswapV2Router.addLiquidityETH(
+        this.testToken.address,
+        toWei(String(1000)),
+        1,
+        1,
+        userOne,
+        "1111111111111111111111"
+      , { from:userOne, value:toWei(String(100)) })
+
+      const totalPercentToConvert = Number(await this.daoWallet.burnPercent()) + Number(await this.daoWallet.stakePercent())
+      const totalAmountToSend = toWei(String(1))
+      const totalToConvert = String((totalAmountToSend / 100 ) * totalPercentToConvert)
+
+
+      const path = [
+        this.testToken.address,
+        this.weth.address,
+        this.cot.address
+      ]
+
+      const prices = await this.uniswapV2Router.getAmountsOut(totalToConvert, path)
+      const shouldConverted = Number(fromWei(prices[2])).toFixed(4)
+
+      // send test token
+      await this.testToken.transfer(this.daoWallet.address, totalAmountToSend)
+      // send all test tokens from user one
+      await this.testToken.transfer(userTwo, await this.testToken.balanceOf(userOne))
+      assert.equal(await this.testToken.balanceOf(userOne), 0)
+      // destribute test token
+      await this.daoWallet.destribute([this.testToken.address])
+
+      const converted = Number(fromWei(await this.cot.balanceOf(this.stake.address)))
+      +
+      Number(fromWei(await this.cot.balanceOf(await this.daoWallet.deadAddress())))
+
+      console.log(
+        `Should converted ${shouldConverted}: , converted : ${converted.toFixed(4)}`
+      )
+
+      // burn and stake get converted COT
+      assert.equal(converted.toFixed(4), shouldConverted)
+
+      // user get not converted test token
+      assert.equal(await this.testToken.balanceOf(userOne), totalAmountToSend - totalToConvert)
+    })
+  })
+
   describe('Stake and wallet destribute', function() {
     it('Stake/Unstake should works after destribute ', async function() {
       // stake not hold any hold
@@ -494,7 +546,6 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
       assert.equal(await web3.eth.getBalance(this.daoWallet.address), 0)
     })
   })
-
 
   describe('Vote', function() {
     it('User can not register the same wallet address for vote twice', async function() {
