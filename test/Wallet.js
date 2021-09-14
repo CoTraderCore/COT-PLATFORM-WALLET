@@ -281,11 +281,19 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
     })
 
     it('Owner can update destribution', async function() {
+      assert.equal(await this.daoWallet.burnPercent(), 50)
+      assert.equal(await this.daoWallet.stakePercent(), 10)
+      assert.equal(await this.daoWallet.withdrawPercent(), 40)
+
       await this.daoWallet.updateDestributionPercent(
         40,
         40,
         20
       )
+
+      assert.equal(await this.daoWallet.burnPercent(), 40)
+      assert.equal(await this.daoWallet.stakePercent(), 40)
+      assert.equal(await this.daoWallet.withdrawPercent(), 20)
     })
 
     it('Owner can not set more than 40% for withdraw', async function() {
