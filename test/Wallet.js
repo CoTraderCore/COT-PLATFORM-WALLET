@@ -84,6 +84,7 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
 
     // Deploy ConvertPortal
     this.convertPortal = await ConvertPortal.new(this.cot.address, this.uniswapV2Router.address)
+    this.convertPortal2 = await ConvertPortal.new(this.cot.address, this.uniswapV2Router.address)
 
     // Send some amount of COT to convertPortalMock
     await this.cot.transfer(this.convertPortal.address, toWei(String(1000000)))
@@ -123,18 +124,43 @@ contract('CoTraderDAOWallet', function([userOne, userTwo, userThree]) {
     })
   })
 
+  describe('Update convert portal address', function() {
+    it('Not owner can not update convert portal address ', async function() {
+      await this.daoWallet.changeConvertPortal(
+        this.convertPortal2.address,
+        { from:userTwo }
+      ).should.be.rejectedWith(EVMRevert)
+
+      assert.equal(await this.daoWallet.convertPortal(), this.convertPortal.address)
+    })
+
+    it('Owner can update convert portal address ', async function() {
+      assert.equal(await this.daoWallet.convertPortal(), this.convertPortal.address)
+
+      await this.daoWallet.changeConvertPortal(
+        this.convertPortal2.address
+      )
+
+      assert.equal(await this.daoWallet.convertPortal(), this.convertPortal2.address)
+    })
+  })
+
   describe('Update stake address', function() {
     it('Not owner can not update stake address ', async function() {
       await this.daoWallet.updateStakeAddress(
         this.stake2.address,
         { from:userTwo }
       ).should.be.rejectedWith(EVMRevert)
+
+      assert.equal(await this.daoWallet.stake(), this.stake.address)
     })
 
     it('Owner can update stake address ', async function() {
+      assert.equal(await this.daoWallet.stake(), this.stake.address)
       await this.daoWallet.updateStakeAddress(
         this.stake2.address
       )
+      assert.equal(await this.daoWallet.stake(), this.stake2.address)
     })
   })
 
